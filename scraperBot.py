@@ -1,60 +1,99 @@
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import Select
+from selenium.webdriver.common.keys import Keys
 from datetime import datetime
+import time
 import openpyxl
 
 driver = webdriver.Chrome()
 repo = openpyxl.load_workbook("repo.xlsx")
 
-url = "https://www.statbotics.io/teams#breakdown"
-driver.get(url)
+insights_url = "https://www.statbotics.io/teams#insights"
+breakdown_url = "https://www.statbotics.io/teams#breakdown"
+district_dropdown_css = "#react-select-filter-selectdistrict-input"
+paginate_dropdown_css = "#react-select-paginate-select-input"
+district_dropdown_xpath = "/html/body/div/div/div/div[2]/div/div[2]/div[2]/div[2]/div/div[1]/div/div[4]/div/div[1]/div[2]/input"
+paginate_dropdown_xpath = "/html/body/div/div/div/div[2]/div/div[2]/div[2]/div[2]/div/div[2]/div[3]/div/div/div[1]/div[2]/div/div[1]/div[2]/input"
 
-def printSheet(rank, data):
-    for colIndex, value in enumerate(data, start=1):
-        repo.active.cell(row=rank, column=colIndex, value=value)
+def print_sheet(rank, data):
+    for colIndex, value in enumerate(data, start = 1):
+        repo.active.cell(row=rank, column = colIndex, value=value)
 
-def scrapeAll(district): # 0 for peachtree, 1 for south carolina, 2 for north carolina
+def type_in_dropdown_insights(css_selector, text):
+    dropdown = driver.find_element(By.CSS_SELECTOR, css_selector)
+    dropdown.click()
+    dropdown.send_keys(text)
+    dropdown.send_keys(Keys.ENTER)
+
+def type_in_dropdown_breakdown(xpath, text):
+    dropdown = driver.find_element(By.XPATH, xpath)
+    dropdown.click()
+    dropdown.send_keys(text)
+    dropdown.send_keys(Keys.ENTER)
+
+def prep(district):
     repo.active = repo.worksheets[district]
-    dropdown_element = driver.find_element(By.ID, "your_dropdown_id")
-    select_object = Select(dropdown_element)
-    
     match district:
-        case 0:
-            headerText = "Peachtree"
-            numOfTeams = 74
-        case 1:
-            headerText = "South Carolina"
-            numOfTeams = 34
-        case 2:
-            headerText = "North Carolina"
-            numOfTeams = 86
+            case 0:
+                district_text = "Peachtree"
+                num_of_teams = 74
+            case 1:
+                district_text = "South Carolina"
+                num_of_teams = 34
+            case 2:
+                district_text = "North Carolina"
+                num_of_teams = 86
 
-    select_object.select_by_visible_text(headerText)
+    # INSIGHTS PAGE
+    driver.get(insights_url) # OPENS INSIGHTS PAGE IN PRIMARY TAB
+    time.sleep(1) # delay for letting elements load
+    type_in_dropdown_insights(district_dropdown_css, district_text)
+    type_in_dropdown_insights(paginate_dropdown_css, "100")
+
+    # BREAKDOWN PAGE
+    driver.execute_script("window.open('https://www.statbotics.io/teams#breakdown', '_blank');") # OPENS BREAKDOWN PAGE IN SECONDARY TAB
+    time.sleep(1) # delay for letting elements load
+    driver.switch_to.window(driver.window_handles[1]) # SWITCH TO BREAKDOWN PAGE
+    type_in_dropdown_breakdown(district_dropdown_xpath, district_text)
+    type_in_dropdown_breakdown(paginate_dropdown_xpath, "100")
     
-    for i in range(1, numOfTeams + 1):
-        currEpaPath = f"/html/body/div/div/div/div[2]/div/div[2]/div[2]/div[2]/div/div[2]/div[3]/div/table/tbody/tr[{i}]/td[3]/div/div"
-        currAutoEpaPath = f"" # ALL TO BE ADDED
-        currTeleopEpaPath = f""
-        currEndgameEpaPath = f""
-        currAlgaePath = f""
-        currL1Path = f""
-        currL2Path = f""
-        currL3Path = f""
-        currL4Path = f""
+    return num_of_teams
 
-        epa = driver.find_element(By.XPATH, currEpaPath).text
-        autoEpa = driver.find_element(By.XPATH, currAutoEpaPath).text
-        teleopEpa = driver.find_element(By.XPATH, currTeleopEpaPath).text
-        endgameEpa = driver.find_element(By.XPATH, currEndgameEpaPath).text
-        algae = driver.find_element(By.XPATH, currAlgaePath).text
-        l1 = driver.find_element(By.XPATH, currL1Path).text
-        l2 = driver.find_element(By.XPATH, currL2Path).text
-        l3 = driver.find_element(By.XPATH, currL3Path).text
-        l4 = driver.find_element(By.XPATH, currL4Path).text
+def scrape_all(district): # 0 for peachtree, 1 for south carolina, 2 for north carolina
+    num_of_teams = prep(district)
+    for i in range(1, num_of_teams + 1):
+        # GETTING EPA DATA:
+        driver.switch_to.window(driver.window_handles[0]) # SWITCH TO INSIGHTS PAGE
+        curr_epa_path = f"/html[1]/body[1]/div[1]/div[1]/div[1]/div[2]/div[1]/div[2]/div[2]/div[1]/div[1]/div[2]/div[3]/div[1]/table[1]/tbody[1]/tr[{i}]/td[5]/div[1]/div[1]"
+        curr_auto_epa_path = f"/html[1]/body[1]/div[1]/div[1]/div[1]/div[2]/div[1]/div[2]/div[2]/div[1]/div[1]/div[2]/div[3]/div[1]/table[1]/tbody[1]/tr[{i}]/td[6]/div[1]/div[1]"
+        curr_teleop_epa_path = f"/html[1]/body[1]/div[1]/div[1]/div[1]/div[2]/div[1]/div[2]/div[2]/div[1]/div[1]/div[2]/div[3]/div[1]/table[1]/tbody[1]/tr[{i}]/td[7]/div[1]/div[1]"
+        curr_endgame_epa_path = f"/html[1]/body[1]/div[1]/div[1]/div[1]/div[2]/div[1]/div[2]/div[2]/div[1]/div[1]/div[2]/div[3]/div[1]/table[1]/tbody[1]/tr[{i}]/td[8]/div[1]/div[1]"
+        epa = driver.find_element(By.XPATH, curr_epa_path).text
+        auto_epa = driver.find_element(By.XPATH, curr_auto_epa_path).text
+        teleop_epa = driver.find_element(By.XPATH, curr_teleop_epa_path).text
+        endgame_epa = driver.find_element(By.XPATH, curr_endgame_epa_path).text
 
-        data = [epa, autoEpa, teleopEpa, endgameEpa, algae, l1, l2, l3, l4]
-        printSheet(repo.active, i, data)
+        # GETTING ALGAE AND CORAL DATA:
+        driver.switch_to.window(driver.window_handles[1]) # SWITCH TO BREAKDOWN PAGE
+        curr_algae_path = f"/html[1]/body[1]/div[1]/div[1]/div[1]/div[2]/div[1]/div[2]/div[2]/div[2]/div[1]/div[2]/div[3]/div[1]/table[1]/tbody[1]/tr[{i}]/td[6]/div[1]/div[1]"
+        curr_l1_path = f"/html[1]/body[1]/div[1]/div[1]/div[1]/div[2]/div[1]/div[2]/div[2]/div[2]/div[1]/div[2]/div[3]/div[1]/table[1]/tbody[1]/tr[{i}]/td[9]/div[1]/div[1]"
+        curr_l2_path = f"/html[1]/body[1]/div[1]/div[1]/div[1]/div[2]/div[1]/div[2]/div[2]/div[2]/div[1]/div[2]/div[3]/div[1]/table[1]/tbody[1]/tr[{i}]/td[10]/div[1]/div[1]"
+        curr_l3_path = f"/html[1]/body[1]/div[1]/div[1]/div[1]/div[2]/div[1]/div[2]/div[2]/div[2]/div[1]/div[2]/div[3]/div[1]/table[1]/tbody[1]/tr[{i}]/td[11]/div[1]/div[1]"
+        curr_l4_path = f"/html[1]/body[1]/div[1]/div[1]/div[1]/div[2]/div[1]/div[2]/div[2]/div[2]/div[1]/div[2]/div[3]/div[1]/table[1]/tbody[1]/tr[{i}]/td[12]/div[1]/div[1]"
+        algae = driver.find_element(By.XPATH, curr_algae_path).text
+        l1 = driver.find_element(By.XPATH, curr_l1_path).text
+        l2 = driver.find_element(By.XPATH, curr_l2_path).text
+        l3 = driver.find_element(By.XPATH, curr_l3_path).text
+        l4 = driver.find_element(By.XPATH, curr_l4_path).text
 
+        data = [epa, auto_epa, teleop_epa, endgame_epa, algae, l1, l2, l3, l4]
+        print_sheet(i, data)
+        print(i, data)
+        
     repo.save("repo.xlsx")
+    driver.quit()
+    curr_time = str(datetime.now())
+    print("Finished at " + curr_time)
 
+scrape_all(0)
