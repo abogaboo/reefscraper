@@ -93,6 +93,7 @@ def scrape_all_teams(district): # 0 for peachtree, 1 for south carolina, 2 for n
     repo.save("repo.xlsx")
     driver.quit()
     curr_time = str(datetime.now())
+    repo.active['N3'] = curr_time
     print("Finished at " + curr_time)
 
 scrape_all_teams(0)
