@@ -9,6 +9,9 @@ import openpyxl
 driver = webdriver.Chrome()
 repo = openpyxl.load_workbook("repo.xlsx")
 
+districts_list = ["Chesapeake", "Michigan", "Indiana", "Texas", "Mid-Atlantic", "North Carolina", "South Carolina", "Israel", "New England", "Ontario", "Peachtree", "Pacific NW"]
+num_of_teams_list = [111, 525, 71, 187, 139, 86, 34, 62, 190, 130, 74, 132]
+
 insights_url = "https://www.statbotics.io/teams#insights"
 breakdown_url = "https://www.statbotics.io/teams#breakdown"
 district_dropdown_css = "#react-select-filter-selectdistrict-input"
@@ -32,18 +35,8 @@ def type_in_dropdown_breakdown(xpath, text):
     dropdown.send_keys(text)
     dropdown.send_keys(Keys.ENTER)
 
-def prep(district):
-    repo.active = repo.worksheets[district]
-    match district:
-            case 0:
-                district_text = "Peachtree"
-                num_of_teams = 74
-            case 1:
-                district_text = "South Carolina"
-                num_of_teams = 34
-            case 2:
-                district_text = "North Carolina"
-                num_of_teams = 86
+def prep(district_name):
+    repo.active = repo.worksheets[districts_list.index(district_name)]
 
     # INSIGHTS PAGE
     driver.get(insights_url) # opens insights in primary tab
@@ -57,11 +50,11 @@ def prep(district):
     driver.switch_to.window(driver.window_handles[1]) # switch to breakdown page
     type_in_dropdown_breakdown(district_dropdown_xpath, district_text)
     type_in_dropdown_breakdown(paginate_dropdown_xpath, "100")
-    
-    return num_of_teams
 
-def scrape_all_teams(district): # 0 for peachtree, 1 for south carolina, 2 for north carolina
-    num_of_teams = prep(district)
+def scrape_all_teams(district_name): # 0 for peachtree, 1 for south carolina, 2 for north carolina
+    prep(district_name)
+    num_of_teams = num_of_teams_list[districts_list.index(district_name)]
+
     for i in range(1, num_of_teams + 1):
         # GETTING EPA DATA:
         driver.switch_to.window(driver.window_handles[0]) # switch to insights page
@@ -96,10 +89,11 @@ def scrape_all_teams(district): # 0 for peachtree, 1 for south carolina, 2 for n
     repo.active['N3'] = curr_time
     print("Finished at " + curr_time)
 
-scrape_all_teams(0)
-driver = webdriver.Chrome()
-scrape_all_teams(1)
-driver = webdriver.Chrome()
-scrape_all_teams(2)
-repo.active = repo.worksheets[0]
+def scrape_all_districts():
+    for i in range(12):
+        scrape_all_teams(districts_list[i])
+        driver = webdriver.Chrome()
+        
+repo.active = repo.worksheets[10]
+
 
