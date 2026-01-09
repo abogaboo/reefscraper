@@ -6,7 +6,6 @@ from datetime import datetime
 import time
 import openpyxl
 
-driver = webdriver.Chrome()
 repo = openpyxl.load_workbook("repo.xlsx")
 
 districts_list = ["Chesapeake", "Michigan", "Indiana", "Texas", "Mid-Atlantic", "North Carolina", "South Carolina", "Israel", "New England", "Ontario", "Peachtree", "Pacific NW"]
@@ -23,19 +22,19 @@ def print_sheet(rank, data):
     for colIndex, value in enumerate(data, start = 1):
         repo.active.cell(row = rank, column = colIndex + 2, value = value)
 
-def type_in_dropdown_insights(css_selector, text):
+def type_in_dropdown_insights(css_selector, text, driver):
     dropdown = driver.find_element(By.CSS_SELECTOR, css_selector)
     dropdown.click()
     dropdown.send_keys(text)
     dropdown.send_keys(Keys.ENTER)
 
-def type_in_dropdown_breakdown(xpath, text):
+def type_in_dropdown_breakdown(xpath, text, driver):
     dropdown = driver.find_element(By.XPATH, xpath)
     dropdown.click()
     dropdown.send_keys(text)
     dropdown.send_keys(Keys.ENTER)
 
-def prep(district_name):
+def prep(district_name, driver):
     repo.active = repo.worksheets[districts_list.index(district_name)]
 
     # INSIGHTS PAGE
@@ -51,7 +50,7 @@ def prep(district_name):
     type_in_dropdown_breakdown(district_dropdown_xpath, district_text)
     type_in_dropdown_breakdown(paginate_dropdown_xpath, "100")
 
-def scrape_all_teams(district_name): # 0 for peachtree, 1 for south carolina, 2 for north carolina
+def scrape_all_teams(district_name, driver): # 0 for peachtree, 1 for south carolina, 2 for north carolina
     prep(district_name)
     num_of_teams = num_of_teams_list[districts_list.index(district_name)]
 
@@ -84,16 +83,16 @@ def scrape_all_teams(district_name): # 0 for peachtree, 1 for south carolina, 2 
         print_sheet(i, data) # print list to excel sheet
         print(i, data)
     repo.save("repo.xlsx")
-    driver.quit()
     curr_time = str(datetime.now())
     repo.active['N3'] = curr_time
     print("Finished at " + curr_time)
 
 def scrape_all_districts():
+    driver = webdriver.Chrome()
     for i in range(12):
-        scrape_all_teams(districts_list[i])
-        driver = webdriver.Chrome()
-        
-repo.active = repo.worksheets[10]
+        scrape_all_teams(districts_list[i], driver)
+    driver.quit()
+    repo.active = repo.worksheets[10] # peachtree is visible on opening the sheet
+
 
 
